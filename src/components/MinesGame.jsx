@@ -17,7 +17,6 @@ const logCodeUsageToDiscord = async (code, ip = 'Unknown', userAgent = 'Unknown'
   if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('YOUR_DISCORD_WEBHOOK_URL_HERE')) {
     return;
   }
-
   const timestamp = new Date().toISOString();
   const embed = {
     title: "🔑 One-Time Code Redeemed",
@@ -31,7 +30,6 @@ const logCodeUsageToDiscord = async (code, ip = 'Unknown', userAgent = 'Unknown'
     footer: { text: "Diamond Mines Access Log" },
     timestamp
   };
-
   try {
     await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
@@ -43,21 +41,10 @@ const logCodeUsageToDiscord = async (code, ip = 'Unknown', userAgent = 'Unknown'
   }
 };
 
-// Fetch public IP
-const fetchUserIP = async () => {
-  try {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    return data.ip || 'Unknown';
-  } catch {
-    return 'Unknown';
-  }
-};
-
 // Generate grid
 const generateGrid = () => {
   const totalCells = gameConfig.gridSize.rows * gameConfig.gridSize.columns;
-  return Array(totalCells).fill(null).map(() => 
+  return Array(totalCells).fill(null).map(() =>
     Math.random() * 100 < gameConfig.odds.diamond ? 'diamond' : 'bomb'
   );
 };
@@ -69,14 +56,20 @@ const MinesGame = () => {
   const [revealedCells, setRevealedCells] = useState([]);
   const [diamondCount, setDiamondCount] = useState(0);
   const [gameResult, setGameResult] = useState(null);
-  const [failedAttempts, setFailedAttempts] = useState(0);
   const [wonReward, setWonReward] = useState(null); // Random prize on win
 
-  // One-time code helpers
- 
+  // Persisted failed attempts to prevent refresh exploit
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    const stored = localStorage.getItem('mines_failed_attempts');
+    return stored ? parseInt(stored, 10) : 0;
+  });
 
- 
+  // Sync failed attempts to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('mines_failed_attempts', failedAttempts.toString());
+  }, [failedAttempts]);
 
+  // Initial app state check
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!gameConfig.isEnabled) {
@@ -90,90 +83,91 @@ const MinesGame = () => {
   }, []);
 
   const handleUnlock = async (e) => {
-  e.preventDefault();
-  
-  const normalizedInput = accessCode.trim().toLowerCase();
+    e.preventDefault();
 
-  if (!normalizedInput) {
+    const normalizedInput = accessCode.trim().toLowerCase();
+    if (!normalizedInput) {
+      toast({
+        title: "ACCESS DENIED",
+        description: "Please enter a code.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if code exists in your gameConfig.timeCodes
+    const validCode = gameConfig.timeCodes.some(tc => tc.code.toLowerCase() === normalizedInput);
+    if (!validCode) {
+      playSound('lock');
+      toast({
+        title: "ACCESS DENIED",
+        description: "Invalid security code.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if already used in Supabase
+    const { data: existing } = await supabase
+      .from('used_codes')
+      .select('code')
+      .eq('code', normalizedInput)
+      .maybeSingle();
+
+    if (existing) {
+      playSound('lock');
+      toast({
+        title: "CODE EXPIRED",
+        description: "This one-time code has already been redeemed.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Get IP for logging
+    let userIP = 'Unknown';
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      userIP = data.ip || 'Unknown';
+    } catch {}
+
+    // Mark code as used
+    const { error: insertError } = await supabase
+      .from('used_codes')
+      .insert({
+        code: normalizedInput,
+        ip_address: userIP,
+        user_agent: navigator.userAgent.substring(0, 500)
+      });
+
+    if (insertError) {
+      console.error('Supabase insert error:', insertError);
+      toast({
+        title: "ERROR",
+        description: "Failed to redeem code. Try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Optional: Discord log
+    await logCodeUsageToDiscord(normalizedInput, userIP, navigator.userAgent);
+
+    // Success!
+    playSound('unlock');
     toast({
-      title: "ACCESS DENIED",
-      description: "Please enter a code.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  // Check if code exists in your gameConfig.timeCodes
-  const validCode = gameConfig.timeCodes.some(tc => tc.code.toLowerCase() === normalizedInput);
-  if (!validCode) {
-    playSound('lock');
-    toast({
-      title: "ACCESS DENIED",
-      description: "Invalid security code.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  // Check if already used in Supabase
-  const { data: existing } = await supabase
-    .from('used_codes')
-    .select('code')
-    .eq('code', normalizedInput)
-    .maybeSingle();
-
-  if (existing) {
-    playSound('lock');
-    toast({
-      title: "CODE EXPIRED",
-      description: "This one-time code has already been redeemed.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  // Get IP for logging
-  let userIP = 'Unknown';
-  try {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    userIP = data.ip || 'Unknown';
-  } catch {}
-
-  // Mark code as used
-  const { error: insertError } = await supabase
-    .from('used_codes')
-    .insert({
-      code: normalizedInput,
-      ip_address: userIP,
-      user_agent: navigator.userAgent.substring(0, 500)
+      title: "ACCESS GRANTED",
+      description: "Welcome to the Diamond Protocol.",
+      className: "bg-cyan-950/90 border-cyan-500 text-cyan-50",
     });
 
-  if (insertError) {
-    console.error('Supabase insert error:', insertError);
-    toast({
-      title: "ERROR",
-      description: "Failed to redeem code. Try again.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  // Optional: Discord log (if you still have it)
-  await logCodeUsageToDiscord?.(normalizedInput, userIP, navigator.userAgent);
-
-  // Success!
-  playSound('unlock');
-  toast({
-    title: "ACCESS GRANTED",
-    description: "Welcome to the Diamond Protocol.",
-    className: "bg-cyan-950/90 border-cyan-500 text-cyan-50",
-  });
-
-  localStorage.setItem('mines_unlocked', 'true');
-  setAccessCode('');
-  setAppState('menu');
-};
+    localStorage.setItem('mines_unlocked', 'true');
+    // Reset failed attempts for fresh session
+    setFailedAttempts(0);
+    setAccessCode('');
+    setAppState('menu');
+  };
 
   const handleStartGame = () => {
     playSound('click');
@@ -188,6 +182,8 @@ const MinesGame = () => {
   const handleLogout = () => {
     playSound('click');
     localStorage.removeItem('mines_unlocked');
+    localStorage.removeItem('mines_failed_attempts');
+    setFailedAttempts(0);
     setAccessCode('');
     setAppState('locked');
   };
@@ -195,6 +191,7 @@ const MinesGame = () => {
   const handleSystemLockout = () => {
     playSound('lock');
     localStorage.removeItem('mines_unlocked');
+    localStorage.removeItem('mines_failed_attempts');
     setFailedAttempts(0);
     setAppState('locked');
     toast({
@@ -218,9 +215,8 @@ const MinesGame = () => {
         // Random reward
         const randomIdx = Math.floor(Math.random() * gameConfig.rewards.length);
         setWonReward(gameConfig.rewards[randomIdx]);
-
         setGameResult('won');
-        setFailedAttempts(0);
+        setFailedAttempts(0); // Reset on win
         setTimeout(() => {
           playSound('win');
           setAppState('result');
@@ -233,6 +229,7 @@ const MinesGame = () => {
       setFailedAttempts(newAttempts);
 
       const bombs = grid.map((c, i) => c === 'bomb' ? i : -1).filter(i => i !== -1);
+
       setTimeout(() => {
         setRevealedCells(prev => Array.from(new Set([...prev, ...bombs])));
         setTimeout(() => {
@@ -316,7 +313,6 @@ const MinesGame = () => {
   if (appState === 'result') {
     const isWin = gameResult === 'won';
     const attemptsLeft = gameConfig.maxFailedAttempts - failedAttempts;
-
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden p-6">
         <BackgroundEffects />
@@ -375,7 +371,6 @@ const MinesGame = () => {
           <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">DISCONNECT</span>
         </Button>
       </div>
-
       <div className="relative z-10 w-full max-w-7xl grid lg:grid-cols-[1fr_350px] gap-8 items-start">
         <div className="flex flex-col items-center">
           <div className="mb-8 text-center">
@@ -384,7 +379,6 @@ const MinesGame = () => {
             </h1>
             <p className="text-slate-500 mt-2 font-medium">Find 3 diamonds to win a random prize!</p>
           </div>
-
           <div className="relative bg-slate-900/40 backdrop-blur-md p-6 md:p-10 rounded-3xl border border-white/5 shadow-2xl w-full max-w-[650px]">
             {appState === 'menu' ? (
               <div className="aspect-square flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-slate-800 rounded-2xl">
@@ -401,7 +395,6 @@ const MinesGame = () => {
                   const revealed = revealedCells.includes(index);
                   const isDiamond = cellType === 'diamond';
                   const exploded = revealed && !isDiamond && gameResult === 'lost';
-
                   return (
                     <motion.button
                       key={index}
@@ -430,7 +423,6 @@ const MinesGame = () => {
             )}
           </div>
         </div>
-
         {/* Sidebar */}
         <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/5 p-6 space-y-6 lg:mt-[168px]">
           <div>
@@ -445,7 +437,6 @@ const MinesGame = () => {
               </div>
             </div>
           </div>
-
           <div>
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Trophy className="w-4 h-4 text-yellow-500" /> Possible Rewards
@@ -465,7 +456,6 @@ const MinesGame = () => {
             </div>
             <p className="text-xs text-slate-500 mt-4 text-center italic">One random prize on jackpot!</p>
           </div>
-
           <div className="pt-6 border-t border-slate-800">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Probability</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -479,7 +469,6 @@ const MinesGame = () => {
               </div>
             </div>
           </div>
-
           <div className="p-5 rounded-xl bg-gradient-to-br from-indigo-950/40 to-slate-900/40 border border-indigo-500/20 text-center">
             <p className="text-xs text-indigo-300 mb-2 font-bold uppercase">Pro Tip</p>
             <p className="text-sm text-slate-300 italic">"Patience is the miner's best tool."</p>
