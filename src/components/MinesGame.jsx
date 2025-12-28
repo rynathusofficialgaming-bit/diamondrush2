@@ -11,11 +11,11 @@ import { supabase } from '@/lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 // === DISCORD WEBHOOK ===
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH';
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1454843408362246164/v1On1FW1Z7oQ_7n9GLqWMLbnAb_XdxLteFVZdmeQCr7QT66yi8Kria45eEWNBxO0maeJ';
 
 // Unified Discord logger
 const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) => {
-  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('https://webhook.lewisakura.moe/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH')) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('https://webhook.lewisakura.moe/api/webhooks/1454843408362246164/v1On1FW1Z7oQ_7n9GLqWMLbnAb_XdxLteFVZdmeQCr7QT66yi8Kria45eEWNBxO0maeJ')) {
     return;
   }
   const sessionId = sessionStorage.getItem('mines_session_id') || 'Unknown';
@@ -536,3 +536,4 @@ const MinesGame = () => {
 };
 
 export default MinesGame;
+
