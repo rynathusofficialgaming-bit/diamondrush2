@@ -28,7 +28,7 @@ export const gameConfig = {
   rewards: [
   { amount: 100, prize: "Tokens" },
   { amount: 25, prize: "Gift card voucher" },
-  { amount: 5, prize: "Free Ice pints" }
+  { amount: 5, prize: "Dantes" }
 ],
   
   // Odds configuration (percentage)
@@ -55,6 +55,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
