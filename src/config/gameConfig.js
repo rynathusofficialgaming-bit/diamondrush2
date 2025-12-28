@@ -8,17 +8,17 @@ export const gameConfig = {
   
   // Time-based codes (The user must enter one of the 'code' values to unlock the game)
   timeCodes: [
-    { time: "00:00", code: "MIDNIGHT" },
-    { time: "06:00", code: "SUNRISE" },
-    { time: "12:00", code: "NOON" },
-    { time: "18:00", code: "SUNSET" },
-    { time: "23:59", code: "LASTCALL" },
-    { time: "23:59", code: "LASTCALL1" },
-    { time: "23:59", code: "LASTCALL2" },
-    { time: "23:59", code: "TESTDEMO" },
+    { time: "00:00", code: "MIDNIGHT1" },
+    { time: "06:00", code: "SUNRISE1" },
+    { time: "12:00", code: "NOON1" },
+    { time: "18:00", code: "SUNSET1" },
+    { time: "23:59", code: "LASTCALL111" },
+    { time: "23:59", code: "LASTCALL11" },
+    { time: "23:59", code: "LASTCALL21" },
     { time: "23:59", code: "TESTDEMO1" },
-    { time: "23:59", code: "TESTDEMO2" },
-    { time: "23:59", code: "TESTDEMO3" },
+    { time: "23:59", code: "TESTDEMO11" },
+    { time: "23:59", code: "TESTDEMO21" },
+    { time: "23:59", code: "TESTDEMO31" },
     { time: "23:59", code: "TESTDEMO4" },
     { time: "23:59", code: "TESTDEMO5" },
     { time: "ANY", code: "ADMIN" } // Backdoor for testing
@@ -55,6 +55,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
