@@ -15,7 +15,7 @@ const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/145428002188689419
 
 // Unified Discord logger
 const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) => {
-  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('YOUR_DISCORD_WEBHOOK_URL_HERE')) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('https://discord.com/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH')) {
     return;
   }
 
@@ -32,10 +32,12 @@ const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) =
     footer: { text: "Diamond Mines Security Log" }
   };
 
+  // Using allorigins.win proxy (this should work!)
+  const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(DISCORD_WEBHOOK_URL);
+
   try {
-    await fetch(DISCORD_WEBHOOK_URL, {
+    await fetch(proxyUrl, {
       method: 'POST',
-      mode: 'no-cors',  // ← THIS LINE FIXES IT
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] })
     });
@@ -535,5 +537,6 @@ const MinesGame = () => {
 };
 
 export default MinesGame;
+
 
 
