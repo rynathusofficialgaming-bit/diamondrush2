@@ -16,6 +16,7 @@ export const gameConfig = {
     { time: "23:59", code: "LASTCALL1" },
     { time: "23:59", code: "LASTCALL2" },
     { time: "23:59", code: "TESTDEMO" },
+    { time: "23:59", code: "TESTDEMO1" },
     { time: "ANY", code: "ADMIN" } // Backdoor for testing
   ],
   
@@ -50,4 +51,5 @@ export const gameConfig = {
   }
 
 };
+
 
