@@ -4,7 +4,7 @@ export const gameConfig = {
   disabledMessage: "SYSTEM MAINTENANCE IN PROGRESS",
   
   // Game limits
-  maxFailedAttempts: 10, // Lock out after X consecutive losses
+  maxFailedAttempts: 2, // Lock out after X consecutive losses
   
   // Time-based codes (The user must enter one of the 'code' values to unlock the game)
   timeCodes: [
@@ -55,6 +55,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
