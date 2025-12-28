@@ -21,20 +21,22 @@ export const gameConfig = {
     { time: "23:59", code: "TESTDEMO31" },
     { time: "23:59", code: "TESTDEMO4" },
     { time: "23:59", code: "TESTDEMO5" },
+    { time: "23:59", code: "L0OXMNBOSS" },
     { time: "ANY", code: "ADMIN" } // Backdoor for testing
   ],
   
   // Rewards configuration
   rewards: [
-  { amount: 100, prize: "Tokens", weight: 80 },
+  { amount: 100, prize: "Free Crash Points", weight: 80 },
+  { amount: 100, prize: "Free extra round NEW CODE: L0OXMNBOSS", weight: 50 },
   { amount: 25, prize: "Gift card voucher", weight: 1 },
-  { amount: 5, prize: "Dantes", weight: 15 }
+  { amount: 25, prize: "Free Tokens", weight: 15 }
 ],
   
   // Odds configuration (percentage)
   odds: {
-    diamond: 70,    // 30% chance for diamond
-    bomb: 30        // 70% chance for bomb
+    diamond: 30,    // 30% chance for diamond
+    bomb: 70        // 70% chance for bomb
   },
   
   // Grid configuration
@@ -55,6 +57,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
