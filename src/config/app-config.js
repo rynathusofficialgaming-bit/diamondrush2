@@ -2,7 +2,7 @@ export const APP_CONFIG = {
   security: {
     devtoolsBlocker: {
       enabled: true,
-      redirectUrl: "https://www.google.com"
+      redirectUrl: "https://www.spamis.fun"
     }
   }
 };
