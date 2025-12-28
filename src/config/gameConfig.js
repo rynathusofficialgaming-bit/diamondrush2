@@ -13,6 +13,8 @@ export const gameConfig = {
     { time: "12:00", code: "NOON" },
     { time: "18:00", code: "SUNSET" },
     { time: "23:59", code: "LASTCALL" },
+    { time: "23:59", code: "LASTCALL1" },
+    { time: "23:59", code: "LASTCALL2" },
     { time: "ANY", code: "ADMIN" } // Backdoor for testing
   ],
   
@@ -45,4 +47,5 @@ export const gameConfig = {
     danger: "#ef4444", // Red-500
     background: "#020617" // Slate-950
   }
+
 };
