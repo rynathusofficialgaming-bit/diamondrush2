@@ -33,8 +33,8 @@ export const gameConfig = {
   
   // Odds configuration (percentage)
   odds: {
-    diamond: 30,    // 30% chance for diamond
-    bomb: 70        // 70% chance for bomb
+    diamond: 70,    // 30% chance for diamond
+    bomb: 30        // 70% chance for bomb
   },
   
   // Grid configuration
@@ -55,6 +55,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
