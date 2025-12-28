@@ -35,6 +35,7 @@ const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) =
   try {
     await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
+      mode: 'no-cors',  // ← THIS LINE FIXES IT
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] })
     });
@@ -534,3 +535,4 @@ const MinesGame = () => {
 };
 
 export default MinesGame;
+
