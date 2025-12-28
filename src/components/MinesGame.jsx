@@ -15,7 +15,7 @@ const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/145428002188689419
 
 // Unified Discord logger
 const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) => {
-  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('https://discord.com/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH')) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('YOUR_DISCORD_WEBHOOK_URL_HERE')) {
     return;
   }
 
@@ -535,4 +535,5 @@ const MinesGame = () => {
 };
 
 export default MinesGame;
+
 
