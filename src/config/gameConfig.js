@@ -1,6 +1,6 @@
 export const gameConfig = {
   // Game enabled/disabled state (Set to true to test the full flow, false to see disabled screen)
-  isEnabled: true,
+  isEnabled: false,
   disabledMessage: "SYSTEM MAINTENANCE IN PROGRESS",
   
   // Game limits
@@ -46,7 +46,7 @@ export const gameConfig = {
   },
   
   // Discord claim link
-  discordClaimLink: "https://discord.gg/yourcommunity",
+  discordClaimLink: "https://discord.gg/kgY6UBbszc",
   
   // Visual settings
   colors: {
@@ -57,6 +57,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
