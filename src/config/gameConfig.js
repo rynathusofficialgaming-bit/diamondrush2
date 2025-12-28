@@ -1,6 +1,6 @@
 export const gameConfig = {
   // Game enabled/disabled state (Set to true to test the full flow, false to see disabled screen)
-  isEnabled: false,
+  isEnabled: true,
   disabledMessage: "SYSTEM MAINTENANCE IN PROGRESS",
   
   // Game limits
@@ -57,6 +57,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
