@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Diamond, Bomb, Lock, Terminal, ShieldAlert, Sparkles, XCircle, LogOut, ChevronRight, Play, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { gameConfig } from '@/config/gameConfig';
 import { cn } from '@/lib/utils';
 import { playSound } from '@/lib/sound';
 import { supabase } from '@/lib/supabaseClient';
-import { v4 as uuidv4 } from 'uuid'; // npm install uuid   OR   use crypto.randomUUID() if you prefer
+import { v4 as uuidv4 } from 'uuid';
 
 // === DISCORD WEBHOOK ===
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH';
@@ -18,7 +18,6 @@ const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) =
   if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('https://webhook.lewisakura.moe/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH')) {
     return;
   }
-
   const sessionId = sessionStorage.getItem('mines_session_id') || 'Unknown';
   const embed = {
     title,
@@ -31,7 +30,6 @@ const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) =
     timestamp: new Date().toISOString(),
     footer: { text: "Diamond Mines Security Log" }
   };
-
   try {
     await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
@@ -66,6 +64,12 @@ const MinesGame = () => {
     return stored ? parseInt(stored, 10) : 0;
   });
 
+  // Compute total reward weight once for percentage display
+  const totalRewardWeight = useMemo(() => 
+    gameConfig.rewards.reduce((sum, r) => sum + (r.weight || 1), 0), 
+    []
+  );
+
   // Sync failed attempts
   useEffect(() => {
     sessionStorage.setItem('mines_failed_attempts', failedAttempts.toString());
@@ -86,39 +90,33 @@ const MinesGame = () => {
 
   const handleUnlock = async (e) => {
     e.preventDefault();
-
     const normalizedInput = accessCode.trim().toLowerCase();
     if (!normalizedInput) {
       toast({ title: "ACCESS DENIED", description: "Please enter a code.", variant: "destructive" });
       return;
     }
-
     const validCode = gameConfig.timeCodes.some(tc => tc.code.toLowerCase() === normalizedInput);
     if (!validCode) {
       playSound('lock');
       toast({ title: "ACCESS DENIED", description: "Invalid security code.", variant: "destructive" });
       return;
     }
-
     const { data: existing } = await supabase
       .from('used_codes')
       .select('code')
       .eq('code', normalizedInput)
       .maybeSingle();
-
     if (existing) {
       playSound('lock');
       toast({ title: "CODE EXPIRED", description: "This one-time code has already been redeemed.", variant: "destructive" });
       return;
     }
-
     let userIP = 'Unknown';
     try {
       const res = await fetch('https://api.ipify.org?format=json');
       const data = await res.json();
       userIP = data.ip || 'Unknown';
     } catch {}
-
     const { error: insertError } = await supabase
       .from('used_codes')
       .insert({
@@ -126,22 +124,19 @@ const MinesGame = () => {
         ip_address: userIP,
         user_agent: navigator.userAgent.substring(0, 500)
       });
-
     if (insertError) {
       console.error('Supabase insert error:', insertError);
       toast({ title: "ERROR", description: "Failed to redeem code. Try again.", variant: "destructive" });
       return;
     }
-
     // Create unique session ID
     const sessionId = uuidv4();
     sessionStorage.setItem('mines_session_id', sessionId);
     sessionStorage.setItem('mines_failed_attempts', '0');
     setFailedAttempts(0);
-
     // Log successful unlock
     await logToDiscord(
-      "🔓 Code Redeemed Successfully",
+      "Code Redeemed Successfully",
       `User gained access to Diamond Mines.`,
       0x00FF00,
       [
@@ -150,14 +145,12 @@ const MinesGame = () => {
         { name: "User Agent", value: navigator.userAgent.substring(0, 100) + '...' }
       ]
     );
-
     playSound('unlock');
     toast({
       title: "ACCESS GRANTED",
       description: "Welcome to the Diamond Protocol.",
       className: "bg-cyan-950/90 border-cyan-500 text-cyan-50",
     });
-
     localStorage.setItem('mines_unlocked', 'true');
     setAccessCode('');
     setAppState('menu');
@@ -191,15 +184,13 @@ const MinesGame = () => {
     sessionStorage.removeItem('mines_session_id');
     setFailedAttempts(0);
     setAppState('locked');
-
     const sessionId = sessionStorage.getItem('mines_session_id') || 'Unknown';
     logToDiscord(
-      "🔒 System Lockout Triggered",
+      "System Lockout Triggered",
       `User reached maximum failed attempts.`,
       0xFF0000,
       [{ name: "Session ID", value: `\`${sessionId}\`` }]
     );
-
     toast({
       title: "SYSTEM LOCKOUT",
       description: `Max attempts reached. Session terminated.`,
@@ -209,13 +200,10 @@ const MinesGame = () => {
 
   const revealCell = async (index) => {
     if (appState !== 'playing' || revealedCells.includes(index) || gameResult) return;
-
     const newRevealed = [...revealedCells, index];
     setRevealedCells(newRevealed);
-
     const cellType = grid[index];
 
-    // Get IP for logging (fire-and-forget)
     let userIP = 'Unknown';
     try {
       const res = await fetch('https://api.ipify.org?format=json');
@@ -231,13 +219,11 @@ const MinesGame = () => {
       playSound('diamond');
 
       if (newCount === 3) {
-        // Final integrity check
+        // Integrity check
         const actualDiamonds = newRevealed.filter(i => grid[i] === 'diamond').length;
-
         if (actualDiamonds !== 3) {
-          // TAMPERING DETECTED
           await logToDiscord(
-            "🚨 TAMPERING DETECTED - Forced Win",
+            "TAMPERING DETECTED - Forced Win",
             `User attempted to force a win without revealing 3 real diamonds.`,
             0xFF0000,
             [
@@ -246,20 +232,30 @@ const MinesGame = () => {
               { name: "IP Address", value: userIP, inline: true }
             ]
           );
-          // Still allow the game to continue (or you could force a loss here)
         }
 
-        // LEGITIMATE WIN
-        const randomIdx = Math.floor(Math.random() * gameConfig.rewards.length);
-        const reward = gameConfig.rewards[randomIdx];
+        // Weighted reward selection
+        const totalWeight = gameConfig.rewards.reduce((sum, r) => sum + (r.weight || 1), 0);
+        let random = Math.random() * totalWeight;
+        let selectedReward = gameConfig.rewards[gameConfig.rewards.length - 1]; // fallback
+
+        for (const reward of gameConfig.rewards) {
+          random -= (reward.weight || 1);
+          if (random <= 0) {
+            selectedReward = reward;
+            break;
+          }
+        }
+
+        const reward = selectedReward;
+
         setWonReward(reward);
         setGameResult('won');
         setFailedAttempts(0);
         sessionStorage.setItem('mines_failed_attempts', '0');
 
-        // Log legitimate win with exact prize
         await logToDiscord(
-          "🎉 LEGITIMATE JACKPOT WIN",
+          "LEGITIMATE JACKPOT WIN",
           `User won fairly!`,
           0x00FF00,
           [
@@ -275,7 +271,7 @@ const MinesGame = () => {
         }, 1000);
       }
     } else {
-      // Hit a bomb → loss
+      // Loss
       setGameResult('lost');
       playSound('bomb');
       const newAttempts = failedAttempts + 1;
@@ -496,17 +492,23 @@ const MinesGame = () => {
               <Trophy className="w-4 h-4 text-yellow-500" /> Possible Rewards
             </h3>
             <div className="space-y-3">
-              {gameConfig.rewards.map((reward, i) => (
-                <div key={i} className="p-4 rounded-xl bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-lg font-bold text-white">{reward.amount}</div>
-                      <div className="text-sm text-slate-300">{reward.prize}</div>
+              {gameConfig.rewards.map((reward, i) => {
+                const percentage = totalRewardWeight > 0 
+                  ? ((reward.weight || 1) / totalRewardWeight * 100).toFixed(1) 
+                  : '0';
+                return (
+                  <div key={i} className="p-4 rounded-xl bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-lg font-bold text-white">{reward.amount}</div>
+                        <div className="text-sm text-slate-300">{reward.prize}</div>
+                        <div className="text-xs text-cyan-400 mt-1">{percentage}% chance</div>
+                      </div>
+                      <Sparkles className="w-6 h-6 text-yellow-400" />
                     </div>
-                    <Sparkles className="w-6 h-6 text-yellow-400" />
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <p className="text-xs text-slate-500 mt-4 text-center italic">One random prize on jackpot!</p>
           </div>
@@ -534,7 +536,3 @@ const MinesGame = () => {
 };
 
 export default MinesGame;
-
-
-
-
