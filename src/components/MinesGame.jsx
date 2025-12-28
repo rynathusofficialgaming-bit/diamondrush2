@@ -8,28 +8,30 @@ import { gameConfig } from '@/config/gameConfig';
 import { cn } from '@/lib/utils';
 import { playSound } from '@/lib/sound';
 import { supabase } from '@/lib/supabaseClient';
+import { v4 as uuidv4 } from 'uuid'; // npm install uuid   OR   use crypto.randomUUID() if you prefer
 
-// === DISCORD WEBHOOK (REPLACE WITH YOURS) ===
+// === DISCORD WEBHOOK ===
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH';
 
-// Log code usage to Discord
-const logCodeUsageToDiscord = async (code, ip = 'Unknown', userAgent = 'Unknown') => {
-  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('YOUR_DISCORD_WEBHOOK_URL_HERE')) {
+// Unified Discord logger
+const logToDiscord = async (title, description, color = 0x00FFFF, fields = []) => {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('https://discord.com/api/webhooks/1454280021886894193/JGLhVf_qzMI7recrICBfMYbHPP3PdBsBZvsPa5wmZ4IzLSXFQtq4ptyWzoDZ-6U3xZdH')) {
     return;
   }
-  const timestamp = new Date().toISOString();
+
+  const sessionId = sessionStorage.getItem('mines_session_id') || 'Unknown';
   const embed = {
-    title: "🔑 One-Time Code Redeemed",
-    color: 0x00FFFF,
+    title,
+    description,
+    color,
     fields: [
-      { name: "Code", value: `\`${code.toUpperCase()}\``, inline: true },
-      { name: "Timestamp", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
-      { name: "IP Address", value: ip || 'Unknown', inline: false },
-      { name: "User Agent", value: userAgent.substring(0, 100) + (userAgent.length > 100 ? '...' : ''), inline: false }
+      { name: "Session ID", value: `\`${sessionId}\``, inline: true },
+      ...fields
     ],
-    footer: { text: "Diamond Mines Access Log" },
-    timestamp
+    timestamp: new Date().toISOString(),
+    footer: { text: "Diamond Mines Security Log" }
   };
+
   try {
     await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
@@ -41,7 +43,7 @@ const logCodeUsageToDiscord = async (code, ip = 'Unknown', userAgent = 'Unknown'
   }
 };
 
-// Generate grid
+// Generate grid (client-side)
 const generateGrid = () => {
   const totalCells = gameConfig.gridSize.rows * gameConfig.gridSize.columns;
   return Array(totalCells).fill(null).map(() =>
@@ -56,20 +58,20 @@ const MinesGame = () => {
   const [revealedCells, setRevealedCells] = useState([]);
   const [diamondCount, setDiamondCount] = useState(0);
   const [gameResult, setGameResult] = useState(null);
-  const [wonReward, setWonReward] = useState(null); // Random prize on win
+  const [wonReward, setWonReward] = useState(null);
 
-  // Persisted failed attempts to prevent refresh exploit
+  // Use sessionStorage → prevents multi-tab abuse
   const [failedAttempts, setFailedAttempts] = useState(() => {
-    const stored = localStorage.getItem('mines_failed_attempts');
+    const stored = sessionStorage.getItem('mines_failed_attempts');
     return stored ? parseInt(stored, 10) : 0;
   });
 
-  // Sync failed attempts to localStorage whenever it changes
+  // Sync failed attempts
   useEffect(() => {
-    localStorage.setItem('mines_failed_attempts', failedAttempts.toString());
+    sessionStorage.setItem('mines_failed_attempts', failedAttempts.toString());
   }, [failedAttempts]);
 
-  // Initial app state check
+  // Initial check
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!gameConfig.isEnabled) {
@@ -87,27 +89,17 @@ const MinesGame = () => {
 
     const normalizedInput = accessCode.trim().toLowerCase();
     if (!normalizedInput) {
-      toast({
-        title: "ACCESS DENIED",
-        description: "Please enter a code.",
-        variant: "destructive"
-      });
+      toast({ title: "ACCESS DENIED", description: "Please enter a code.", variant: "destructive" });
       return;
     }
 
-    // Check if code exists in your gameConfig.timeCodes
     const validCode = gameConfig.timeCodes.some(tc => tc.code.toLowerCase() === normalizedInput);
     if (!validCode) {
       playSound('lock');
-      toast({
-        title: "ACCESS DENIED",
-        description: "Invalid security code.",
-        variant: "destructive"
-      });
+      toast({ title: "ACCESS DENIED", description: "Invalid security code.", variant: "destructive" });
       return;
     }
 
-    // Check if already used in Supabase
     const { data: existing } = await supabase
       .from('used_codes')
       .select('code')
@@ -116,15 +108,10 @@ const MinesGame = () => {
 
     if (existing) {
       playSound('lock');
-      toast({
-        title: "CODE EXPIRED",
-        description: "This one-time code has already been redeemed.",
-        variant: "destructive"
-      });
+      toast({ title: "CODE EXPIRED", description: "This one-time code has already been redeemed.", variant: "destructive" });
       return;
     }
 
-    // Get IP for logging
     let userIP = 'Unknown';
     try {
       const res = await fetch('https://api.ipify.org?format=json');
@@ -132,7 +119,6 @@ const MinesGame = () => {
       userIP = data.ip || 'Unknown';
     } catch {}
 
-    // Mark code as used
     const { error: insertError } = await supabase
       .from('used_codes')
       .insert({
@@ -143,18 +129,28 @@ const MinesGame = () => {
 
     if (insertError) {
       console.error('Supabase insert error:', insertError);
-      toast({
-        title: "ERROR",
-        description: "Failed to redeem code. Try again.",
-        variant: "destructive"
-      });
+      toast({ title: "ERROR", description: "Failed to redeem code. Try again.", variant: "destructive" });
       return;
     }
 
-    // Optional: Discord log
-    await logCodeUsageToDiscord(normalizedInput, userIP, navigator.userAgent);
+    // Create unique session ID
+    const sessionId = uuidv4();
+    sessionStorage.setItem('mines_session_id', sessionId);
+    sessionStorage.setItem('mines_failed_attempts', '0');
+    setFailedAttempts(0);
 
-    // Success!
+    // Log successful unlock
+    await logToDiscord(
+      "🔓 Code Redeemed Successfully",
+      `User gained access to Diamond Mines.`,
+      0x00FF00,
+      [
+        { name: "Code", value: `\`${normalizedInput.toUpperCase()}\``, inline: true },
+        { name: "IP Address", value: userIP, inline: true },
+        { name: "User Agent", value: navigator.userAgent.substring(0, 100) + '...' }
+      ]
+    );
+
     playSound('unlock');
     toast({
       title: "ACCESS GRANTED",
@@ -163,15 +159,14 @@ const MinesGame = () => {
     });
 
     localStorage.setItem('mines_unlocked', 'true');
-    // Reset failed attempts for fresh session
-    setFailedAttempts(0);
     setAccessCode('');
     setAppState('menu');
   };
 
   const handleStartGame = () => {
     playSound('click');
-    setGrid(generateGrid());
+    const newGrid = generateGrid();
+    setGrid(newGrid);
     setRevealedCells([]);
     setDiamondCount(0);
     setGameResult(null);
@@ -182,7 +177,8 @@ const MinesGame = () => {
   const handleLogout = () => {
     playSound('click');
     localStorage.removeItem('mines_unlocked');
-    localStorage.removeItem('mines_failed_attempts');
+    sessionStorage.removeItem('mines_failed_attempts');
+    sessionStorage.removeItem('mines_session_id');
     setFailedAttempts(0);
     setAccessCode('');
     setAppState('locked');
@@ -191,9 +187,19 @@ const MinesGame = () => {
   const handleSystemLockout = () => {
     playSound('lock');
     localStorage.removeItem('mines_unlocked');
-    localStorage.removeItem('mines_failed_attempts');
+    sessionStorage.removeItem('mines_failed_attempts');
+    sessionStorage.removeItem('mines_session_id');
     setFailedAttempts(0);
     setAppState('locked');
+
+    const sessionId = sessionStorage.getItem('mines_session_id') || 'Unknown';
+    logToDiscord(
+      "🔒 System Lockout Triggered",
+      `User reached maximum failed attempts.`,
+      0xFF0000,
+      [{ name: "Session ID", value: `\`${sessionId}\`` }]
+    );
+
     toast({
       title: "SYSTEM LOCKOUT",
       description: `Max attempts reached. Session terminated.`,
@@ -201,32 +207,80 @@ const MinesGame = () => {
     });
   };
 
-  const revealCell = (index) => {
+  const revealCell = async (index) => {
     if (appState !== 'playing' || revealedCells.includes(index) || gameResult) return;
 
-    setRevealedCells(prev => [...prev, index]);
+    const newRevealed = [...revealedCells, index];
+    setRevealedCells(newRevealed);
 
-    if (grid[index] === 'diamond') {
+    const cellType = grid[index];
+
+    // Get IP for logging (fire-and-forget)
+    let userIP = 'Unknown';
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      userIP = data.ip || 'Unknown';
+    } catch {}
+
+    const sessionId = sessionStorage.getItem('mines_session_id') || 'Unknown';
+
+    if (cellType === 'diamond') {
       const newCount = diamondCount + 1;
       setDiamondCount(newCount);
       playSound('diamond');
 
       if (newCount === 3) {
-        // Random reward
+        // Final integrity check
+        const actualDiamonds = newRevealed.filter(i => grid[i] === 'diamond').length;
+
+        if (actualDiamonds !== 3) {
+          // TAMPERING DETECTED
+          await logToDiscord(
+            "🚨 TAMPERING DETECTED - Forced Win",
+            `User attempted to force a win without revealing 3 real diamonds.`,
+            0xFF0000,
+            [
+              { name: "Reported Diamonds", value: "3", inline: true },
+              { name: "Actual Diamonds", value: actualDiamonds.toString(), inline: true },
+              { name: "IP Address", value: userIP, inline: true }
+            ]
+          );
+          // Still allow the game to continue (or you could force a loss here)
+        }
+
+        // LEGITIMATE WIN
         const randomIdx = Math.floor(Math.random() * gameConfig.rewards.length);
-        setWonReward(gameConfig.rewards[randomIdx]);
+        const reward = gameConfig.rewards[randomIdx];
+        setWonReward(reward);
         setGameResult('won');
-        setFailedAttempts(0); // Reset on win
+        setFailedAttempts(0);
+        sessionStorage.setItem('mines_failed_attempts', '0');
+
+        // Log legitimate win with exact prize
+        await logToDiscord(
+          "🎉 LEGITIMATE JACKPOT WIN",
+          `User won fairly!`,
+          0x00FF00,
+          [
+            { name: "Prize Won", value: `${reward.amount} ${reward.prize}`, inline: true },
+            { name: "IP Address", value: userIP, inline: true },
+            { name: "User Agent", value: navigator.userAgent.substring(0, 100) + '...' }
+          ]
+        );
+
         setTimeout(() => {
           playSound('win');
           setAppState('result');
         }, 1000);
       }
     } else {
+      // Hit a bomb → loss
       setGameResult('lost');
       playSound('bomb');
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
+      sessionStorage.setItem('mines_failed_attempts', newAttempts.toString());
 
       const bombs = grid.map((c, i) => c === 'bomb' ? i : -1).filter(i => i !== -1);
 
