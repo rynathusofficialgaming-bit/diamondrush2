@@ -28,7 +28,7 @@ export const gameConfig = {
   // Rewards configuration
   rewards: [
   { amount: 100, prize: "Free Crash Points", weight: 80 },
-  { amount: 100, prize: "Free extra round NEW CODE: L0OXMNBOSS", weight: 50 },
+  { amount: 100, prize: "Free extra round", weight: 50 },
   { amount: 25, prize: "Gift card voucher", weight: 1 },
   { amount: 25, prize: "Free Tokens", weight: 15 }
 ],
@@ -57,6 +57,7 @@ export const gameConfig = {
   }
 
 };
+
 
 
 
