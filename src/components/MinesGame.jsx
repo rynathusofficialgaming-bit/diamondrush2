@@ -502,7 +502,6 @@ const MinesGame = () => {
                       <div>
                         <div className="text-lg font-bold text-white">{reward.amount}</div>
                         <div className="text-sm text-slate-300">{reward.prize}</div>
-                        <div className="text-xs text-cyan-400 mt-1">{percentage}% chance</div>
                       </div>
                       <Sparkles className="w-6 h-6 text-yellow-400" />
                     </div>
@@ -536,4 +535,5 @@ const MinesGame = () => {
 };
 
 export default MinesGame;
+
 
